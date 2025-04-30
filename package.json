@@ -1,0 +1,60 @@
+{
+	"$schema": "https://json.schemastore.org/package.json",
+	"name": "ts-boilerplate",
+	"version": "0.1.0",
+	"private": true,
+	"description": "The VitruviusLabs boilerplate repository for TypeScript development.",
+	"author": {
+		"name": "VitruviusLabs"
+	},
+	"contributors": [
+		"Nicolas \"SmashingQuasar\" Lebacq <contact@vitruvius-labs.com>",
+		"Benjamin Blum <benjamin.blum.98@gmail.com>"
+	],
+	"keywords": [],
+	"license": "UNLICENSED",
+	"type": "module",
+	"scripts": {
+		"eslint:inspect-config": "eslint --inspect-config",
+		"boot": "pnpm run build && ./docker/scripts/boot.sh && docker logs -f vitruvius",
+		"clean": "rm -rf reports coverage build dist lib .eslintcache",
+		"compile": "tsc -p tsconfig.build.json",
+		"build": "pnpm clean && pnpm compile",
+		"eslint:check": "eslint",
+		"eslint:fix": "eslint --fix",
+		"test:unit": "tsx --test **/*.spec.mts",
+		"test:unit:only": "tsx --test --test-only **/*.spec.mts",
+		"test:unit:stryker": "pnpm test:unit",
+		"test:mutation": "stryker run",
+		"node:coverage": "NODE_V8_COVERAGE=./reports/node-coverage tsx --experimental-test-coverage --test **/*.spec.mts",
+		"c8:coverage": "c8 --exclude mock --exclude test tsx --test-reporter spec --test **/*.spec.mts",
+		"ts:check": "tsc -p tsconfig.json --noEmit",
+		"spell:check": "cspell -c ../../.vscode/cspell.json .",
+		"ci:lint": "pnpm eslint:check",
+		"ci:ts:check": "pnpm ts:check",
+		"ci:spell:check": "pnpm spell:check",
+		"ci:test:unit": "pnpm test:unit",
+		"ci:full": "pnpm ci:lint && pnpm ci:ts:check && pnpm ci:spell:check && pnpm ci:test:unit",
+		"ci:publish": "pnpm publish --access public --no-git-checks",
+		"ci:publish:dry": "pnpm publish --access public --dry-run --no-git-checks",
+		"ci:build": "pnpm build"
+	},
+	"devDependencies": {
+		"@stryker-mutator/core": "^8.7.1",
+		"@stryker-mutator/typescript-checker": "^8.7.1",
+		"@stylistic/eslint-plugin": "^2.13.0",
+		"@types/node": "^22.13.5",
+		"@types/sinon": "^17.0.4",
+		"c8": "^10.1.3",
+		"cspell": "^8.17.5",
+		"eslint": "^9.21.0",
+		"eslint-plugin-perfectionist": "^3.9.1",
+		"husky": "^9.1.7",
+		"lint-staged": "^15.4.3",
+		"sinon": "^19.0.2",
+		"ts-node": "^10.9.2",
+		"tsx": "^4.19.3",
+		"typescript": "^5.8.2",
+		"typescript-eslint": "^8.25.0"
+	}
+}

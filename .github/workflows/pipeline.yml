@@ -1,0 +1,90 @@
+name: Continuous Integration and Deployment
+
+run-name: Running CI/CD for event ${{github.event_name}} (Triggered by user ${{ github.triggering_actor }})
+
+on:
+  push:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      ts-files-changed: ${{ steps.parse-changed-files.outputs.ts-files-changed }}
+      require-spell-check: ${{ steps.parse-changed-files.outputs.require-spell-check }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Parse changed files
+        id: parse-changed-files
+        run: |
+          echo "ts-files-changed=$((git diff --name-status ${{ github.event.before }} ${{ github.event.after }} | grep -oP '[M]{1}[^A-Za-z]*(.*)' | sed --regexp-extended 's/[AMD]\s+//g' | grep -oP '.*\.ts$') 1> /dev/null && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "require-spell-check=$(./_ops/continuous-integration/scripts/requires_spell_check.sh ${{ github.event.before }} ${{ github.event.after }})" >> $GITHUB_OUTPUT
+
+      - name: Debug
+        run: |
+          echo ${{ steps.parse-changed-files.outputs.ts-files-changed }}
+          echo ${{ steps.parse-changed-files.outputs.require-spell-check }}
+
+      - name: PNPM installation
+        # if: ${{ steps.parse-changed-files.outputs.ts-files-changed == 'true'  || steps.parse-changed-files.outputs.require-spell-check == 'true' }}
+        uses: pnpm/action-setup@v4
+        id: pnpm-install
+        with:
+          version: 9
+          run_install: false
+
+      - name: Get pnpm store directory
+        # if: ${{ steps.parse-changed-files.outputs.ts-files-changed == 'true'  || steps.parse-changed-files.outputs.require-spell-check == 'true' }}
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: PNPM cache configuration
+        # if: ${{ steps.parse-changed-files.outputs.ts-files-changed == 'true'  || steps.parse-changed-files.outputs.require-spell-check == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        # if: ${{ steps.parse-changed-files.outputs.ts-files-changed == 'true'  || steps.parse-changed-files.outputs.require-spell-check == 'true' }}
+        run: |
+          pnpm install --frozen-lockfile
+          cd packages/mockingbird && pnpm install --frozen-lockfile && cd ../..
+
+      - name: Dependencies caching
+        # if: ${{ steps.parse-changed-files.outputs.ts-files-changed == 'true'  || steps.parse-changed-files.outputs.require-spell-check == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+  spell-check-global:
+    needs: setup
+    runs-on: ubuntu-latest
+    # if: ${{ needs.setup.outputs.require-spell-check == 'true' }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: PNPM installation
+        uses: pnpm/action-setup@v4
+        id: pnpm-install
+        with:
+          version: 9
+          run_install: false
+
+      - name: Dependencies cache unpacking
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Check spelling with CSpell
+        run: pnpm --filter ts-predicate ci:spell:check
